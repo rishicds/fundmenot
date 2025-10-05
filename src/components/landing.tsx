@@ -10,9 +10,10 @@ import LottieAnimation from './lottie-animation';
 
 interface LandingProps {
   onStart: () => void;
+  onStartPanel: () => void;
 }
 
-export default function Landing({ onStart }: LandingProps) {
+export default function Landing({ onStart, onStartPanel }: LandingProps) {
   return (
   <div className="relative flex flex-col items-center justify-center text-center p-4 md:p-6 w-full min-h-screen overflow-hidden">
       {/* Background Lottie - placed behind content */}
@@ -72,27 +73,43 @@ export default function Landing({ onStart }: LandingProps) {
       </div>
       
       {/* Buttons section */}
-      <div className="flex flex-col sm:flex-row justify-center items-center gap-3 md:gap-4 z-10 w-full max-w-xs sm:max-w-lg md:max-w-xl px-2 pb-6 md:pb-8 mx-auto mt-4">
-          <Button
-            size="lg"
-            className="w-full sm:w-auto font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4"
-            onClick={onStart}
-          >
-            <MicrophoneIcon className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
-            Pitch Idea
-          </Button>
-          <Button asChild size="lg" variant="outline" className="w-full sm:w-auto font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4">
-            <Link href="/judges">
+      <div className="flex flex-col justify-center items-center gap-3 md:gap-4 z-10 w-full max-w-xs sm:max-w-lg md:max-w-2xl px-2 pb-6 md:pb-8 mx-auto mt-4">
+          {/* Main pitch buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Button
+              size="lg"
+              className="w-full sm:flex-1 font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4"
+              onClick={onStart}
+            >
+              <MicrophoneIcon className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
+              Single Judge
+            </Button>
+            <Button
+              size="lg"
+              variant="default"
+              className="w-full sm:flex-1 font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              onClick={onStartPanel}
+            >
               <Users className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
-              Meet the Judges
-            </Link>
-          </Button>
-          <Button asChild size="lg" variant="outline" className="w-full sm:w-auto font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4">
-            <Link href="/leaderboard">
-              <Trophy className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
-              See Leaderboard
-            </Link>
-          </Button>
+              Judge Panel (4 Judges)
+            </Button>
+          </div>
+          
+          {/* Secondary buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <Button asChild size="lg" variant="outline" className="w-full sm:flex-1 font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4">
+              <Link href="/judges">
+                <Users className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
+                Meet the Judges
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="w-full sm:flex-1 font-bold hover:scale-105 active:scale-95 transition-transform duration-200 ease-in-out text-sm md:text-base py-3 md:py-4">
+              <Link href="/leaderboard">
+                <Trophy className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" />
+                See Leaderboard
+              </Link>
+            </Button>
+          </div>
       </div>
     </div>
   );

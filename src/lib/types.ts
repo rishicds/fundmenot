@@ -34,6 +34,13 @@ export type JudgeFeedbackResponse = {
   isGlitched: boolean;
   reversedSpeech: boolean;
   audioDataUri: string | null;
+  targetJudges?: Judge[]; // For fight mode - judges being roasted
+};
+
+export type PanelFeedbackResponse = {
+  judges: Judge[];
+  responses: JudgeFeedbackResponse[];
+  isFightMode?: boolean; // Special event where judges roast each other
 };
 
 export type ScoreCategory = 'Originality' | 'Viability' | 'Clarity';
@@ -56,4 +63,4 @@ export type ReportCardData = {
 };
 
 
-export type AppState = 'idle' | 'judge-selected' | 'recording' | 'processing' | 'feedback' | 'report-card' | 'error';
+export type AppState = 'idle' | 'judge-selected' | 'panel-selected' | 'recording' | 'processing' | 'feedback' | 'panel-feedback' | 'report-card' | 'error';
