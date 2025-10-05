@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Pause, Play, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[] | null>(null);
 
   // Simplified sentiment for styling
   const sentimentCategory = sentiment.includes('positive') ? 'positive' : sentiment.includes('negative') ? 'negative' : 'neutral';
@@ -43,6 +44,15 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       synthRef.current = window.speechSynthesis;
+      // cache voices; some browsers populate them asynchronously
+      const loadVoices = () => {
+        const v = synthRef.current?.getVoices() || [];
+        if (v.length) voicesRef.current = v;
+      };
+      loadVoices();
+      if (synthRef.current) {
+        synthRef.current.onvoiceschanged = loadVoices;
+      }
     }
   }, []);
 
@@ -53,6 +63,22 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
       audio.onplay = () => setIsPlaying(true);
       audio.onpause = () => setIsPlaying(false);
       audio.onended = () => setIsPlaying(false);
+
+      // Try to autoplay the provided audio (preferred: not TTS). If autoplay is blocked,
+      // we'll fall back to speech synthesis (male-voiced) below.
+      audio.autoplay = true;
+      // attempt play; modern browsers may block autoplay without user gesture
+  audio.play().catch(() => {
+        // fallback to TTS male voice if audio can't play
+        // (user requested 'male voices for all' and prefers proper voices over generic TTS)
+        // We attempt a male voice synthesis only if no audio playback possible.
+        if (synthRef.current) {
+          const textToSpeak = reversedSpeech ? response.split('').reverse().join('') : response;
+          speakWithMaleVoice(textToSpeak);
+        }
+        // ignore error otherwise
+        // console.debug('autoplay blocked, falling back to TTS', err);
+      });
     }
     return () => {
       if (audio) {
@@ -63,7 +89,49 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
         synthRef.current.cancel();
       }
     };
-  }, [audioDataUri]);
+  }, [audioDataUri, response, reversedSpeech]);
+
+  // Helper: choose a likely male voice from available voices using heuristics
+  const getPreferredMaleVoice = useCallback(() => {
+    const voices = voicesRef.current || synthRef.current?.getVoices() || [];
+    if (!voices.length) return undefined;
+
+    // Heuristic lists of common male voice name fragments across platforms
+    const maleNameHints = ['Alex', 'Daniel', 'David', 'John', 'Daniel', 'Mark', 'Arthur', 'Tom', 'Fred', 'Allan', 'Matthew', 'Guy', 'Paul', 'George'];
+
+    // prefer en-US voices first
+    const enUs = voices.filter(v => /en-?us/i.test(v.lang));
+    const candidates = enUs.length ? enUs : voices;
+
+    // try to find a voice whose name contains a male hint
+    for (const hint of maleNameHints) {
+      const found = candidates.find(v => v.name.toLowerCase().includes(hint.toLowerCase()));
+      if (found) return found;
+    }
+
+    // fallback: prefer voices whose voice URI/name looks like a male (simple heuristic)
+    const fallback = candidates.find(v => /male|man/i.test(v.name + ' ' + (v.voiceURI || '')));
+    if (fallback) return fallback;
+
+    // final fallback: first voice
+    return candidates[0];
+  }, []);
+
+  const speakWithMaleVoice = useCallback((text: string) => {
+    if (!synthRef.current) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = getPreferredMaleVoice();
+    if (voice) utterance.voice = voice;
+    utterance.onstart = () => setIsPlaying(true);
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+    // speak
+    try {
+      synthRef.current.speak(utterance);
+    } catch {
+      // ignore
+    }
+  }, [getPreferredMaleVoice]);
 
   const handleSpeech = () => {
     if (audioRef.current) {
@@ -83,12 +151,8 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
     }
 
     const textToSpeak = reversedSpeech ? response.split('').reverse().join('') : response;
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.onstart = () => setIsPlaying(true);
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
-    
-    synthRef.current.speak(utterance);
+    // Prefer using a male voice when falling back to SpeechSynthesis
+    speakWithMaleVoice(textToSpeak);
   };
   
   return (
