@@ -12,7 +12,7 @@ import { Badge } from './ui/badge';
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 
-const ModelViewer = dynamic(() => import('@/components/model-viewer'), {
+const LottieAnimation = dynamic(() => import('@/components/lottie-animation'), {
   ssr: false,
   loading: () => (
     <div className="w-32 h-32 rounded-full bg-background flex items-center justify-center">
@@ -168,14 +168,12 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
                     }>
-                      <ModelViewer 
-                        modelPath={judge.modelPath}
+                      <LottieAnimation 
+                        animationPath={judge.lottieAnimation || '/lottie/Businessman Giving Presentation.json'}
                         className="w-full h-full"
-                        scale={2.5}
-                        autoRotate={true}
+                        autoplay={true}
+                        loop={true}
                         isGlitched={isGlitched}
-                        cameraPosition={[0, 0.5, 3]}
-                        modelVariation={judge.modelVariation}
                       />
                     </Suspense>
                 </div>

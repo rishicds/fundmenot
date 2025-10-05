@@ -35,10 +35,11 @@ export default function Home() {
     }
   }, [user, isUserLoading, auth]);
 
-  const handleGetJudge = useCallback(async () => {
+  const handleGetJudge = useCallback(async (excludeCurrentJudge = false) => {
     setAppState('processing');
     try {
-      const result = await getJudge();
+      const excludeJudgeId = excludeCurrentJudge && judge ? judge.id : undefined;
+      const result = await getJudge(excludeJudgeId);
        if (result.error || !result.data) {
         throw new Error(result.error || 'Could not select a judge.');
       }
@@ -54,12 +55,12 @@ export default function Home() {
       });
       setAppState('error');
     }
-  }, [toast]);
+  }, [toast, judge]);
   
   const handleReroll = useCallback(() => {
     if (rerollCount < MAX_REROLLS) {
         setRerollCount(rerollCount + 1);
-        handleGetJudge();
+        handleGetJudge(true); // true means exclude current judge
     }
   }, [rerollCount, handleGetJudge]);
 

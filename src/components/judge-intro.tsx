@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const ModelViewer = dynamic(() => import('@/components/model-viewer'), {
+const LottieAnimation = dynamic(() => import('@/components/lottie-animation'), {
   ssr: false,
   loading: () => (
     <div className="w-32 h-32 rounded-full bg-background shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark flex items-center justify-center">
@@ -40,14 +40,12 @@ export default function JudgeIntro({ judge, onStartRecording, onReroll, rerollCo
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         }>
-          <ModelViewer 
-            modelPath={judge.modelPath}
+          <LottieAnimation 
+            animationPath={judge.lottieAnimation || '/lottie/Businessman Giving Presentation.json'}
             className="w-full h-full"
-            scale={4}
-            autoRotate={false}
+            autoplay={true}
+            loop={true}
             isGlitched={isGlitched}
-            cameraPosition={[0, 2, 3]}
-            modelVariation={judge.modelVariation}
           />
         </Suspense>
       </div>

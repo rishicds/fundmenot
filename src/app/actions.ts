@@ -23,13 +23,33 @@ async function getSentiment(text: string) {
   }
 }
 
-export async function getJudge(): Promise<{ data: Judge | null; error: string | null; }> {
+export async function getJudge(excludeJudgeId?: string): Promise<{ data: Judge | null; error: string | null; }> {
     try {
-        const commonJudges = JUDGES.filter(j => j.rarity === 'common');
-        const rareJudges = JUDGES.filter(j => j.rarity === 'rare');
+        let commonJudges = JUDGES.filter(j => j.rarity === 'common');
+        let rareJudges = JUDGES.filter(j => j.rarity === 'rare');
+        
+        // Filter out the current judge if provided
+        if (excludeJudgeId) {
+            commonJudges = commonJudges.filter(j => j.id !== excludeJudgeId);
+            rareJudges = rareJudges.filter(j => j.id !== excludeJudgeId);
+        }
         
         // Glitch judge is no longer selected here
         const judgePool = Math.random() < 0.25 ? [...commonJudges, ...rareJudges] : commonJudges;
+        
+        // If judge pool is empty (shouldn't happen with current setup), fallback to all judges except excluded
+        if (judgePool.length === 0) {
+            const allNonGlitchJudges = JUDGES.filter(j => j.rarity !== 'glitch' && j.id !== excludeJudgeId);
+            if (allNonGlitchJudges.length === 0) {
+                // This should never happen, but fallback to any judge except glitch
+                const fallbackJudges = JUDGES.filter(j => j.rarity !== 'glitch');
+                const judge = fallbackJudges[Math.floor(Math.random() * fallbackJudges.length)];
+                return { data: judge, error: null };
+            }
+            const judge = allNonGlitchJudges[Math.floor(Math.random() * allNonGlitchJudges.length)];
+            return { data: judge, error: null };
+        }
+        
         const judge = judgePool[Math.floor(Math.random() * judgePool.length)];
         
         return { data: judge, error: null };
@@ -47,7 +67,7 @@ export async function getJudgeFeedback(pitchTranscript: string, judgeId: string)
       throw new Error("Pitch transcript is empty. Please record your pitch again.");
     }
 
-    let judge = JUDGES.find(j => j.id === judgeId);
+    const judge = JUDGES.find(j => j.id === judgeId);
     if (!judge) {
         throw new Error("Invalid judge selected.");
     }

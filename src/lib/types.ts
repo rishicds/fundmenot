@@ -13,6 +13,7 @@ export type Judge = {
   personality: JudgePersonality | GlitchedJudgePersonality;
   avatar: JudgeIcon;
   modelPath: string;
+  lottieAnimation?: string;
   modelVariation?: {
     scale?: number;
     rotation?: [number, number, number];
