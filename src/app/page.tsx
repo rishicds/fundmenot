@@ -1,103 +1,206 @@
-import Image from "next/image";
+
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+import type { AppState, Judge, JudgeFeedbackResponse, ReportCardData } from '@/lib/types';
+import { getJudge, getJudgeFeedback, generateReportCard, saveLeaderboardEntry } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import Landing from '@/components/landing';
+import RecorderUI from '@/components/recorder-ui';
+import FeedbackCard from '@/components/feedback-card';
+import { Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import JudgeIntro from '@/components/judge-intro';
+import ReportCard from '@/components/report-card';
+import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
+import { Button } from '@/components/ui/button';
+
+const MAX_REROLLS = 3;
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [appState, setAppState] = useState<AppState>('idle');
+  const [feedback, setFeedback] = useState<JudgeFeedbackResponse | null>(null);
+  const [judge, setJudge] = useState<Judge | null>(null);
+  const [reportCard, setReportCard] = useState<ReportCardData | null>(null);
+  const [pitchTranscript, setPitchTranscript] = useState<string | null>(null);
+  const [rerollCount, setRerollCount] = useState(0);
+  const { toast } = useToast();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  useEffect(() => {
+    // Automatically sign in the user anonymously if not already signed in and not loading.
+    if (!user && !isUserLoading && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
+  const handleGetJudge = useCallback(async () => {
+    setAppState('processing');
+    try {
+      const result = await getJudge();
+       if (result.error || !result.data) {
+        throw new Error(result.error || 'Could not select a judge.');
+      }
+      setJudge(result.data);
+      setAppState('judge-selected');
+    } catch (error) {
+       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Could not select a judge. Please try again. Error: ${errorMessage}`,
+      });
+      setAppState('error');
+    }
+  }, [toast]);
+  
+  const handleReroll = useCallback(() => {
+    if (rerollCount < MAX_REROLLS) {
+        setRerollCount(rerollCount + 1);
+        handleGetJudge();
+    }
+  }, [rerollCount, handleGetJudge]);
+
+
+  const handleRecordingComplete = useCallback(async (transcript: string) => {
+    if (!judge) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No judge was selected. Please restart.',
+        });
+        setAppState('error');
+        return;
+    }
+    setPitchTranscript(transcript);
+    setAppState('processing');
+    try {
+      const result = await getJudgeFeedback(transcript, judge.id);
+      if (result.error || !result.data) {
+        throw new Error(result.error || 'Could not get feedback.');
+      }
+      setFeedback(result.data);
+      setAppState('feedback');
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      toast({
+        variant: 'destructive',
+        title: 'Error Processing Pitch',
+        description: `Your pitch couldn't be processed. Please try again. Error: ${errorMessage}`,
+      });
+      setAppState('error');
+    }
+  }, [toast, judge]);
+
+  const handleShowReportCard = useCallback(async () => {
+    if (!pitchTranscript || !feedback) return;
+    setAppState('processing');
+    try {
+      const result = await generateReportCard(pitchTranscript, feedback.response);
+       if (result.error || !result.data) {
+        throw new Error(result.error || 'Could not generate report card.');
+      }
+      setReportCard(result.data);
+      setAppState('report-card');
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      toast({
+        variant: 'destructive',
+        title: 'Error Generating Report Card',
+        description: `We couldn't generate your report card. Please try again. Error: ${errorMessage}`,
+      });
+      setAppState('feedback'); // Go back to feedback screen
+    }
+  }, [pitchTranscript, feedback, toast]);
+
+  const handleLeaderboardSubmit = useCallback(async (name: string) => {
+    if (!user || !reportCard) return;
+    setAppState('processing');
+    try {
+      const result = await saveLeaderboardEntry({ ...reportCard, leaderboardName: name }, user.uid);
+       if (result.error) {
+        throw new Error(result.error);
+      }
+      toast({
+        title: 'Leaderboard Submitted!',
+        description: 'You are now on the Most Roasted leaderboard!',
+      });
+      // After successful submission, go back to idle state
+      handleReset();
+    } catch (error) {
+       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      toast({
+        variant: 'destructive',
+        title: 'Error Submitting to Leaderboard',
+        description: `We couldn't submit your score. Please try again. Error: ${errorMessage}`,
+      });
+       // If submission fails, stay on the report card screen
+       setAppState('report-card');
+    }
+  }, [reportCard, user, toast]);
+
+  const handleReset = () => {
+    setAppState('idle');
+    setFeedback(null);
+    setJudge(null);
+    setReportCard(null);
+    setPitchTranscript(null);
+    setRerollCount(0);
+  };
+  
+  const renderContent = () => {
+    if (isUserLoading && appState !== 'idle') {
+        return (
+             <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <h2 className="text-2xl font-headline font-bold">Waking up the judges...</h2>
+             </div>
+        )
+    }
+
+    switch (appState) {
+      case 'judge-selected':
+        return judge && <JudgeIntro judge={judge} onStartRecording={() => setAppState('recording')} onReroll={handleReroll} rerollCount={rerollCount} maxRerolls={MAX_REROLLS} />;
+      case 'recording':
+        return judge && <RecorderUI judge={judge} onRecordingComplete={handleRecordingComplete} setAppState={setAppState} />;
+      case 'processing':
+        return (
+          <div className="flex flex-col items-center justify-center gap-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <h2 className="text-2xl font-headline font-bold">Judges are deliberating...</h2>
+            <p className="text-muted-foreground">Analyzing your groundbreaking (or ground-shaking) idea.</p>
+          </div>
+        );
+      case 'feedback':
+        return feedback && <FeedbackCard feedback={feedback} onNext={handleShowReportCard} />;
+      case 'report-card':
+        return reportCard && <ReportCard reportCard={reportCard} onSubmit={handleLeaderboardSubmit} onReset={handleReset} />;
+       case 'error':
+        return (
+           <Card className="w-full max-w-md text-center">
+            <CardContent className="p-8">
+              <h2 className='text-2xl font-bold font-headline mb-4 text-destructive'>Something went wrong</h2>
+              <p className="text-muted-foreground mb-6">We hit a snag. Please try again from the beginning.</p>
+              <Button onClick={handleReset}>
+                Start Over
+              </Button>
+            </CardContent>
+          </Card>
+        )
+      case 'idle':
+      default:
+        return <Landing onStart={handleGetJudge} />;
+    }
+  };
+
+  return (
+    <div className="container mx-auto flex min-h-screen flex-col items-center justify-center p-4">
+      {renderContent()}
     </div>
   );
 }
