@@ -8,8 +8,7 @@ import { analyzeSentiment } from '@/ai/flows/analyze-sentiment';
 import { generateTTS } from '@/ai/flows/generate-tts';
 import type { Judge, JudgeFeedbackResponse, JudgePersonality, ReportCardData } from '@/lib/types';
 import { JUDGES } from '@/lib/judges';
-import { initializeFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { initializeFirebaseAdmin } from '@/firebase/server';
 
 const GLITCH_CHANCE = 0.15; // 15% chance of a glitched judge event
 
@@ -154,17 +153,19 @@ export async function generateReportCard(pitch: string, feedback: string): Promi
 
 export async function saveLeaderboardEntry(reportCard: ReportCardData, userId: string): Promise<{ error: string | null }> {
     try {
-        const { firestore } = initializeFirebase();
-        const leaderboardCol = collection(firestore, 'leaderboard');
-        
-        // Use the non-blocking Firestore update
-        addDocumentNonBlocking(leaderboardCol, {
-            userId,
-            leaderboardName: reportCard.leaderboardName,
-            overallRoastLevel: reportCard.overallRoastLevel,
-            feedbackSummary: reportCard.feedbackSummary,
-            createdAt: new Date().toISOString(),
-        });
+    // Use the Admin SDK on the server to write to Firestore.
+    const { firestore } = initializeFirebaseAdmin();
+    const leaderboardRef = firestore.collection('leaderboard').doc();
+    // Fire-and-forget write using Admin SDK; attach a catch to log permission/errors
+    leaderboardRef.set({
+      userId,
+      leaderboardName: reportCard.leaderboardName,
+      overallRoastLevel: reportCard.overallRoastLevel,
+      feedbackSummary: reportCard.feedbackSummary,
+      createdAt: new Date().toISOString(),
+    }).catch((e: unknown) => {
+      console.error('Failed to save leaderboard entry (admin):', e);
+    });
 
         return { error: null };
     } catch (error) {
