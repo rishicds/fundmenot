@@ -4,35 +4,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  VcChadIcon,
-  PhilosopherAiIcon,
-  TrollBot69Icon,
-  ModernDaduIcon,
-  OutdatedGenzIcon,
-  BrokenJudgeIcon,
-  CosmicCoderIcon,
-  HypeBeastIcon,
-} from '@/components/icons';
 import { handleAudioTranscription } from '@/app/actions';
 import type { AppState, Judge } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
+
+const ModelViewer = dynamic(() => import('@/components/model-viewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-32 h-32 rounded-full bg-background flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 const MAX_RECORDING_TIME = 30; // 30 seconds
 const EXPRESSIONS = ['🤔', '😂', '😴', '🤮', '🙄', '🤯', '💰', '📉'];
-
-const iconMap = {
-  VcChadIcon,
-  PhilosopherAiIcon,
-  TrollBot69Icon,
-  ModernDaduIcon,
-  OutdatedGenzIcon,
-  BrokenJudgeIcon,
-  CosmicCoderIcon,
-  HypeBeastIcon,
-};
 
 
 interface RecorderUIProps {
@@ -52,7 +42,6 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
   const expressionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const recordingStartedRef = useRef(false);
   const { toast } = useToast();
-  const AvatarIcon = iconMap[judge.avatar];
   const isGlitched = judge.rarity === 'glitch';
 
 
@@ -173,8 +162,22 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
 
         <div className='relative flex flex-col items-center'>
             <div className='relative'>
-                 <div className="relative w-32 h-32 rounded-full bg-background flex items-center justify-center">
-                    <AvatarIcon className={cn('h-20 w-20 text-primary transition-all', isGlitched && 'glitch-text')} />
+                 <div className="relative w-32 h-32 rounded-full bg-background overflow-hidden">
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center w-full h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    }>
+                      <ModelViewer 
+                        modelPath={judge.modelPath}
+                        className="w-full h-full"
+                        scale={2.5}
+                        autoRotate={true}
+                        isGlitched={isGlitched}
+                        cameraPosition={[0, 0.5, 3]}
+                        modelVariation={judge.modelVariation}
+                      />
+                    </Suspense>
                 </div>
                 <div className="absolute -top-2 -right-2 text-4xl bg-background rounded-full p-1 shadow-neumorphic dark:shadow-neumorphic-dark transition-all animate-in zoom-in-50">
                     {currentExpression}

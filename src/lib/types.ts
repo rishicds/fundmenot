@@ -1,5 +1,3 @@
-import type { ComponentType, SVGProps } from 'react';
-
 export type JudgePersonality = 'VC Chad' | 'Philosopher AI' | 'TrollBot69' | 'Modern Dadu' | 'Outdated GenZ' | 'Cosmic Coder' | 'Hype Beast';
 export type GlitchedJudgePersonality = 'Broken Judge';
 
@@ -14,6 +12,13 @@ export type Judge = {
   name: string;
   personality: JudgePersonality | GlitchedJudgePersonality;
   avatar: JudgeIcon;
+  modelPath: string;
+  modelVariation?: {
+    scale?: number;
+    rotation?: [number, number, number];
+    color?: string;
+    position?: [number, number, number];
+  };
   rarity: 'common' | 'rare' | 'glitch';
   description: string;
   voice: JudgeVoice;

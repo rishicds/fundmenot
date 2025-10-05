@@ -2,33 +2,23 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Pause, Play, ArrowRight } from 'lucide-react';
+import { Pause, Play, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import type { JudgeFeedbackResponse } from '@/lib/types';
 import { Badge } from './ui/badge';
-import {
-  VcChadIcon,
-  PhilosopherAiIcon,
-  TrollBot69Icon,
-  ModernDaduIcon,
-  OutdatedGenzIcon,
-  BrokenJudgeIcon,
-  CosmicCoderIcon,
-  HypeBeastIcon,
-} from '@/components/icons';
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 
-const iconMap = {
-  VcChadIcon,
-  PhilosopherAiIcon,
-  TrollBot69Icon,
-  ModernDaduIcon,
-  OutdatedGenzIcon,
-  BrokenJudgeIcon,
-  CosmicCoderIcon,
-  HypeBeastIcon,
-};
+const ModelViewer = dynamic(() => import('@/components/model-viewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-32 h-32 rounded-full bg-background flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 interface FeedbackCardProps {
   feedback: JudgeFeedbackResponse;
@@ -40,7 +30,6 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
-  const AvatarIcon = iconMap[judge.avatar];
 
   // Simplified sentiment for styling
   const sentimentCategory = sentiment.includes('positive') ? 'positive' : sentiment.includes('negative') ? 'negative' : 'neutral';
@@ -58,16 +47,17 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
   }, []);
 
   useEffect(() => {
-    if (audioDataUri && audioRef.current) {
-      audioRef.current.src = audioDataUri;
-      audioRef.current.onplay = () => setIsPlaying(true);
-      audioRef.current.onpause = () => setIsPlaying(false);
-      audioRef.current.onended = () => setIsPlaying(false);
+    const audio = audioRef.current;
+    if (audioDataUri && audio) {
+      audio.src = audioDataUri;
+      audio.onplay = () => setIsPlaying(true);
+      audio.onpause = () => setIsPlaying(false);
+      audio.onended = () => setIsPlaying(false);
     }
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
+      if (audio) {
+        audio.pause();
+        audio.src = '';
       }
       if (synthRef.current) {
         synthRef.current.cancel();
@@ -110,8 +100,22 @@ export default function FeedbackCard({ feedback, onNext }: FeedbackCardProps) {
       )}
     >
       <CardHeader className="items-center">
-        <div className={cn('relative w-32 h-32 rounded-full bg-background shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark flex items-center justify-center', isGlitched && 'animate-pulse')}>
-            <AvatarIcon className={cn('h-20 w-20 text-primary transition-all', isGlitched && 'glitch-text')} />
+        <div className={cn('relative w-32 h-32 rounded-full bg-background shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark overflow-hidden', isGlitched && 'animate-pulse')}>
+          <Suspense fallback={
+            <div className="flex items-center justify-center w-full h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          }>
+            <ModelViewer 
+              modelPath={judge.modelPath}
+              className="w-full h-full"
+              scale={2.5}
+              autoRotate={true}
+              isGlitched={isGlitched}
+              cameraPosition={[0, 0.5, 3]}
+              modelVariation={judge.modelVariation}
+            />
+          </Suspense>
         </div>
         <div className='flex items-center gap-2'>
             <h2 className={cn('text-3xl font-bold font-headline', isGlitched && 'glitch-text')}>{judge.name}</h2>
