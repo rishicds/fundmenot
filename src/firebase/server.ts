@@ -1,37 +1,24 @@
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import admin from 'firebase-admin';
 
-// Server-side Firebase initialization (without 'use client' directive)
-export function initializeFirebaseServer() {
-  if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
-    let firebaseApp;
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables
-      firebaseApp = initializeApp();
-    } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
+let initialized = false;
 
-    return getServerSdks(firebaseApp);
+export function initializeFirebaseAdmin() {
+  if (initialized && admin.apps.length) {
+    return { firestore: admin.firestore(), admin };
   }
 
-  // If already initialized, return the SDKs with the already initialized App
-  return getServerSdks(getApp());
+  // Try to initialize with GOOGLE_APPLICATION_CREDENTIALS or environment variables.
+  try {
+    if (!admin.apps.length) {
+      admin.initializeApp();
+    }
+    initialized = true;
+    return { firestore: admin.firestore(), admin };
+  } catch (e) {
+    // Re-throw with helpful message for devs
+    console.error('Failed to initialize Firebase Admin SDK. Ensure service account credentials are available in the environment.', e);
+    throw e;
+  }
 }
 
-export function getServerSdks(firebaseApp: FirebaseApp) {
-  return {
-    firebaseApp,
-    firestore: getFirestore(firebaseApp)
-  };
-}
+export default initializeFirebaseAdmin;
