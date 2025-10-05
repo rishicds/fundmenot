@@ -13,6 +13,7 @@ import { RotateCcw, Send, Sparkles, Lightbulb, TrendingUp } from 'lucide-react';
 import type { ReportCardData, Grade, Score, ScoreCategory } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import LottieAnimation from '@/components/lottie-animation';
 
 const leaderboardFormSchema = z.object({
   name: z.string().min(2, {
@@ -91,8 +92,18 @@ export default function ReportCard({ reportCard, onSubmit, onReset }: ReportCard
   return (
     <Card className="w-full max-w-md text-center">
       <CardHeader>
-        <CardTitle className="text-4xl font-headline">Your Report Card</CardTitle>
-        <CardDescription>How well did your startup survive the roast?</CardDescription>
+        <div className="flex flex-col items-center gap-4">
+          <LottieAnimation 
+            animationPath="/lottie/Results.json"
+            className="w-24 h-24"
+            autoplay={true}
+            loop={true}
+          />
+          <div>
+            <CardTitle className="text-4xl font-headline">Your Report Card</CardTitle>
+            <CardDescription>How well did your startup survive the roast?</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4 p-4 rounded-xl shadow-neumorphic-inset dark:shadow-neumorphic-inset-dark">
