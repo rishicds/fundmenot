@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
+import ComicDialogue from './comic-dialogue';
 
 const LottieAnimation = dynamic(() => import('@/components/lottie-animation'), {
   ssr: false,
@@ -22,7 +23,19 @@ const LottieAnimation = dynamic(() => import('@/components/lottie-animation'), {
 });
 
 const MAX_RECORDING_TIME = 30; // 30 seconds
-const EXPRESSIONS = ['🤔', '😂', '😴', '🤮', '🙄', '🤯', '💰', '📉'];
+
+// Map dialogue types to appropriate emojis
+const DIALOGUE_EMOJIS = {
+  confused: ['😵‍💫', '🤷‍♂️', '😵', '🤨'],
+  puzzled: ['🤔', '🧐', '🤷‍♀️', '😶'],
+  shocked: ['😱', '🤯', '😳', '🙀'],
+  frustrated: ['😤', '🙄', '😠', '🤦‍♂️'],
+  skeptical: ['🤨', '😒', '🙃', '👀'],
+  glitched: ['🤖', '💀', '🔥', '⚡']
+};
+
+// Fallback generic expressions
+const GENERIC_EXPRESSIONS = ['🤔', '😂', '😴', '🤮', '🙄', '🤯', '💰', '📉'];
 
 
 interface RecorderUIProps {
@@ -36,6 +49,7 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [currentExpression, setCurrentExpression] = useState('😬');
+  const [currentDialogueType, setCurrentDialogueType] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -44,6 +58,27 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
   const { toast } = useToast();
   const isGlitched = judge.rarity === 'glitch';
 
+  // Function to get an emoji that matches the current dialogue type
+  const getMatchingEmoji = useCallback((dialogueType: string | null) => {
+    if (isGlitched && dialogueType === 'glitched') {
+      const glitchedEmojis = DIALOGUE_EMOJIS.glitched;
+      return glitchedEmojis[Math.floor(Math.random() * glitchedEmojis.length)];
+    }
+    
+    if (dialogueType && DIALOGUE_EMOJIS[dialogueType as keyof typeof DIALOGUE_EMOJIS]) {
+      const emojis = DIALOGUE_EMOJIS[dialogueType as keyof typeof DIALOGUE_EMOJIS];
+      return emojis[Math.floor(Math.random() * emojis.length)];
+    }
+    
+    // Fallback to generic expressions
+    return GENERIC_EXPRESSIONS[Math.floor(Math.random() * GENERIC_EXPRESSIONS.length)];
+  }, [isGlitched]);
+
+  // Function to update emoji based on current context
+  const updateEmoji = useCallback(() => {
+    const newEmoji = getMatchingEmoji(currentDialogueType);
+    setCurrentExpression(newEmoji);
+  }, [currentDialogueType, getMatchingEmoji]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -114,8 +149,7 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
       }, 1000);
       
       expressionIntervalRef.current = setInterval(() => {
-        const randomIndex = Math.floor(Math.random() * EXPRESSIONS.length);
-        setCurrentExpression(EXPRESSIONS[randomIndex]);
+        updateEmoji();
       }, 3000);
 
     } catch (error) {
@@ -128,6 +162,13 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
       setAppState('error');
     }
   }, [stopRecording, onRecordingComplete, setAppState, toast]);
+
+  // Update emoji when dialogue type changes
+  useEffect(() => {
+    if (currentDialogueType) {
+      updateEmoji();
+    }
+  }, [currentDialogueType, updateEmoji]);
 
   useEffect(() => {
     startRecording();
@@ -177,9 +218,32 @@ export default function RecorderUI({ judge, onRecordingComplete, setAppState }: 
                       />
                     </Suspense>
                 </div>
+                
+                {/* Emoji reaction overlay */}
                 <div className="absolute -top-2 -right-2 text-4xl bg-background rounded-full p-1 shadow-neumorphic dark:shadow-neumorphic-dark transition-all animate-in zoom-in-50">
                     {currentExpression}
                 </div>
+                
+                {/* Comic dialogue boxes positioned around the judge */}
+                <ComicDialogue 
+                  className="-top-16 -left-20"
+                  isVisible={isRecording}
+                  isGlitched={isGlitched}
+                  delay={1000}
+                  frequency={5000}
+                  recordingTime={MAX_RECORDING_TIME - countdown}
+                  onDialogueChange={setCurrentDialogueType}
+                />
+                
+                <ComicDialogue 
+                  className="-top-12 -right-24"
+                  isVisible={isRecording}
+                  isGlitched={isGlitched}
+                  delay={3000}
+                  frequency={6000}
+                  recordingTime={MAX_RECORDING_TIME - countdown}
+                  onDialogueChange={setCurrentDialogueType}
+                />
             </div>
             <div className="flex items-center gap-2 mt-4">
                 <h2 className={cn('text-xl font-bold font-headline', isGlitched && 'glitch-text')}>{judge.name}</h2>

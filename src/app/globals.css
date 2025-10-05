@@ -160,4 +160,65 @@
         -0.025em -0.05em 0 hsl(var(--destructive) / 0.75);
     }
   }
+
+  /* Comic dialogue styles */
+  .font-comic {
+    font-family: 'Comic Sans MS', 'Marker Felt', 'Chalkduster', cursive;
+    font-weight: bold;
+  }
+
+  .speech-bubble-left::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid currentColor;
+  }
+
+  .speech-bubble-right::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid currentColor;
+  }
+
+  .thought-bubble {
+    border-radius: 20px;
+  }
+
+  .shout-bubble {
+    border-radius: 8px;
+    border-width: 3px;
+    border-style: solid;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Additional animations for comic effects */
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+
+  @keyframes pop-in {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.1) rotate(-2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.5s ease-in-out infinite;
+  }
+
+  .animate-pop-in {
+    animation: pop-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
 }
