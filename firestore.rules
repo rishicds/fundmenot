@@ -1,0 +1,176 @@
+/**
+ * @file Firebase Security Rules for AI Roast My Startup.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user-generated content (pitches, responses, report cards)
+ * and allows public read access to judge profiles. It leverages path-based authorization and avoids complex `get()`
+ * calls by denormalizing ownership information. Leaderboard entries are managed by a trusted server environment (e.g., Cloud Functions).
+ *
+ * Data Structure:
+ * - /users/{userId}: User profiles, accessible only to the owning user.
+ * - /users/{userId}/pitches/{pitchId}: User's startup pitches, accessible only to the owning user.
+ * - /users/{userId}/pitches/{pitchId}/judgeResponses/{judgeResponseId}: Judge responses to a user's pitch, accessible only to the owning user.
+ * - /users/{userId}/pitches/{pitchId}/reportCard/{reportCardId}: Report card generated for a user's pitch, accessible only to the owning user.
+ * - /judges/{judgeId}: AI judge profiles, publicly readable but writable only by a trusted source.
+ * - /leaderboard/{leaderboardId}: Leaderboard data, writable only by a trusted source.
+ *
+ * Key Security Decisions:
+ * - User data is strictly private and accessible only to the authenticated user.
+ * - Judges are publicly readable to facilitate browsing, but only writable by admins (emulated through a TODO).
+ * - Leaderboard data is managed by a server-side function to prevent client-side manipulation.
+ * - Listing of user profiles is disallowed to prevent enumeration.
+ *
+ * Denormalization for Authorization:
+ * - Ownership is determined by the path structure itself (e.g., /users/{userId}/...).  This avoids needing to store
+ *   redundant `userId` fields within subcollection documents.
+ *
+ * Structural Segregation:
+ * - Judges are stored in a separate top-level collection to allow for public read access without compromising user data.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows users to read and write their own user profile.
+     * @path /users/{userId}
+     * @allow (create) request.auth.uid == 'user_abc' and request.resource.data.id == 'user_abc'
+     * @allow (get) request.auth.uid == 'user_abc'
+     * @deny (create) request.auth.uid != 'user_abc'
+     * @deny (update) request.auth.uid != 'user_abc'
+     * @deny (delete) request.auth.uid != 'user_abc'
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Prevent user enumeration
+
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows users to manage their startup pitches.
+     * @path /users/{userId}/pitches/{pitchId}
+     * @allow (create) request.auth.uid == 'user_abc'
+     * @allow (get) request.auth.uid == 'user_abc'
+     * @deny (create) request.auth.uid != 'user_abc'
+     * @deny (update) request.auth.uid != 'user_abc'
+     * @deny (delete) request.auth.uid != 'user_abc'
+     * @principle Enforces document ownership for user pitches.
+     */
+    match /users/{userId}/pitches/{pitchId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows users to read and write judge responses to their pitches.
+     * @path /users/{userId}/pitches/{pitchId}/judgeResponses/{judgeResponseId}
+     * @allow (create) request.auth.uid == 'user_abc'
+     * @allow (get) request.auth.uid == 'user_abc'
+     * @deny (create) request.auth.uid != 'user_abc'
+     * @deny (update) request.auth.uid != 'user_abc'
+     * @deny (delete) request.auth.uid != 'user_abc'
+     * @principle Enforces document ownership for judge responses.
+     */
+    match /users/{userId}/pitches/{pitchId}/judgeResponses/{judgeResponseId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+       function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows users to manage report cards generated for their pitches.
+     * @path /users/{userId}/pitches/{pitchId}/reportCard/{reportCardId}
+     * @allow (create) request.auth.uid == 'user_abc'
+     * @allow (get) request.auth.uid == 'user_abc'
+     * @deny (create) request.auth.uid != 'user_abc'
+     * @deny (update) request.auth.uid != 'user_abc'
+     * @deny (delete) request.auth.uid != 'user_abc'
+     * @principle Enforces document ownership for report cards.
+     */
+    match /users/{userId}/pitches/{pitchId}/reportCard/{reportCardId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows anyone to read judge profiles, but restricts writing to a trusted source (TODO: Implement admin check).
+     * @path /judges/{judgeId}
+     * @allow (get) true
+     * @allow (list) true
+     * @deny (create) false
+     * @deny (update) false
+     * @deny (delete) false
+     * @principle Public read access with restricted write access for judge profiles.
+     */
+    match /judges/{judgeId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update, delete: if false; // TODO: Implement admin check
+    }
+
+     /**
+      * @description Leaderboard data is managed by a trusted server environment (e.g., Cloud Functions) and is not directly accessible to clients.
+      * @path /leaderboard/{leaderboardId}
+      * @deny (get) false
+      * @deny (list) false
+      * @deny (create) false
+      * @deny (update) false
+      * @deny (delete) false
+      * @principle Restricts write access to leaderboard data to a trusted server environment.
+      */
+    match /leaderboard/{leaderboardId} {
+          allow get: if false;
+          allow list: if false;
+          allow create: if false; // Only writeable by cloud function
+          allow update: if false; // Only writeable by cloud function
+          allow delete: if false; // Only writeable by cloud function
+    }
+  }
+}
