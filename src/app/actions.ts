@@ -8,7 +8,8 @@ import { analyzeSentiment } from '@/ai/flows/analyze-sentiment';
 import { generateTTS } from '@/ai/flows/generate-tts';
 import type { Judge, JudgeFeedbackResponse, JudgePersonality, ReportCardData } from '@/lib/types';
 import { JUDGES } from '@/lib/judges';
-import { initializeFirebase, addDocumentNonBlocking } from '@/firebase';
+import { initializeFirebaseServer } from '@/firebase/server';
+import { addDocumentNonBlockingServer } from '@/firebase/server-operations';
 import { collection } from 'firebase/firestore';
 
 const GLITCH_CHANCE = 0.15; // 15% chance of a glitched judge event
@@ -154,11 +155,11 @@ export async function generateReportCard(pitch: string, feedback: string): Promi
 
 export async function saveLeaderboardEntry(reportCard: ReportCardData, userId: string): Promise<{ error: string | null }> {
     try {
-        const { firestore } = initializeFirebase();
+        const { firestore } = initializeFirebaseServer();
         const leaderboardCol = collection(firestore, 'leaderboard');
         
-        // Use the non-blocking Firestore update
-        addDocumentNonBlocking(leaderboardCol, {
+        // Use the server-side non-blocking Firestore update
+        addDocumentNonBlockingServer(leaderboardCol, {
             userId,
             leaderboardName: reportCard.leaderboardName,
             overallRoastLevel: reportCard.overallRoastLevel,
